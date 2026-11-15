@@ -1,0 +1,26 @@
+# Copyright (C) 2026 Stanislav Yaglo
+# SPDX-License-Identifier: Apache-2.0
+# Only Ubiquitty's two original house palettes; no adapted third-party schemes.
+
+upstream_repository = "ubiquitty-core"
+upstream_path = "Source/Core/Themes/builtin-themes.toml"
+upstream_commit = "0de9cccace59b9c74159163817bbb077c509b84b"
+upstream_file_sha256 = "b43280fb9cb1e3a29c0517592c31fe00855900eb7a242a74ad2c1de0acf1560c"
+
+[[themes]]
+name = "Noir"
+slug = "noir"
+is_dark = true
+ansi = ["#2e323b", "#dd717a", "#98c896", "#e3be7c", "#72a3e8", "#c189d9", "#66c0c8", "#c8ccd4", "#5a606e", "#ea8088", "#a9d89f", "#efce8e", "#8ab5ee", "#d09fe5", "#7ccfd6", "#eaedf2"]
+fg = "#c8ccd4"
+bg = "#15171c"
+cursor = "#e0e4ec"
+
+[[themes]]
+name = "Noir Clair"
+slug = "noir-clair"
+is_dark = false
+ansi = ["#32363c", "#a7414c", "#416d40", "#7f5d17", "#3564a4", "#834d99", "#006e76", "#ccd2dd", "#8c93a2", "#93313e", "#345d2b", "#6b4f04", "#2e5587", "#6e4181", "#005d64", "#1c1f23"]
+fg = "#32363c"
+bg = "#f4f5f8"
+cursor = "#22252b"

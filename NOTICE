@@ -1,0 +1,18 @@
+Ubiquitty Omarchy integration
+Copyright 2026 Stanislav Yaglo
+
+This project includes integration scripts and the original Noir and Noir Clair
+palettes developed by Stanislav Yaglo as part of Ubiquitty and ubiquitty-core.
+Their original attribution is:
+
+    Ubiquitty
+    Copyright 2026 Stanislav Yaglo
+
+These original materials are licensed under Apache-2.0. Each source file keeps
+its copyright and SPDX identification. Theme provenance is recorded in
+themes/PROVENANCE.md.
+
+Packaged Ubiquitty applications retain their own complete license notices,
+including the licenses of bundled fonts and other third-party components.
+Those notices travel with the redistributable under share/doc/ubiquitty.
+
