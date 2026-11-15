@@ -16,3 +16,6 @@ Packaged Ubiquitty applications retain their own complete license notices,
 including the licenses of bundled fonts and other third-party components.
 Those notices travel with the redistributable under share/doc/ubiquitty.
 
+
+themes/noir/backgrounds/0-cosmic-cliffs.jpg is a public-domain NASA, ESA, CSA and
+STScI image from the James Webb Space Telescope, not covered by Apache-2.0.

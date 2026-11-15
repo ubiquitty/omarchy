@@ -74,7 +74,8 @@ def outputs(theme):
         alacritty += f"\n[colors.{section}]\n" + "".join(f'{key} = "{value}"\n' for key, value in zip(names, values))
     return {"colors.toml": colors.encode(), "foot.ini": foot.encode(), "kitty.conf": kitty.encode(),
             "ghostty.conf": ghostty.encode(), "alacritty.toml": alacritty.encode(),
-            "backgrounds/solid.png": solid_png(theme["bg"])}
+            "backgrounds/solid.png": solid_png(theme["bg"]),
+            "icons.theme": b"Yaru-blue\n"}
 
 
 def import_core(source):

@@ -19,8 +19,9 @@ omarchy theme set noir
 The installer copies both themes into the user's Omarchy theme directory. It
 backs up changed copies and does not switch the active theme. Noir is dark;
 Noir Clair is light. Both retain Ubiquitty's exact 16 ANSI colors, foreground,
-background, and cursor in their terminal configurations. Desktop roles and
-original solid-color backgrounds are generated from those palettes.
+background, and cursor in their terminal configurations. Desktop roles, wallpapers, lock-screen art and previews are generated from those
+palettes; Noir also ships NASA's public-domain Webb "Cosmic Cliffs" image as its
+first 4K wallpaper.
 
 Use this installer for this multi-theme repository. The installed directories
 are user-owned theme copies, preserving their exact terminal palettes.
