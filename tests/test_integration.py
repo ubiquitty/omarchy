@@ -2,6 +2,7 @@
 # Copyright (C) 2026 Stanislav Yaglo
 # SPDX-License-Identifier: Apache-2.0
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -10,6 +11,8 @@ import tomllib
 from pathlib import Path
 import tempfile
 import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
 
 spec = importlib.util.spec_from_file_location('integration', (Path(__file__).resolve().parents[1] / 'libexec').joinpath('ubiquitty-omarchy.py'))
 integration = importlib.util.module_from_spec(spec)
@@ -37,6 +40,40 @@ class IntegrationTests(unittest.TestCase):
                 integration.register_menu(path, Path('/helper'), Path('/binary'))
                 integration.register_menu(path, Path('/helper'), Path('/binary'))
                 self.assertEqual(path.read_text().count('BEGIN UBIQUITTY'), 1)
+
+    def test_terminal_tag_rule_preserves_user_configuration_and_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'hyprland.lua'
+            original = '-- personal rules\no.window("other", { float = true })\n'
+            path.write_text(original)
+            path.chmod(0o640)
+            rule = Path(directory) / 'versioned "installation"/ubiquitty-terminal.lua'
+            integration.register_terminal_rule(path, rule)
+            first = path.read_text()
+            integration.register_terminal_rule(path, rule)
+            self.assertEqual(path.read_text(), first)
+            self.assertIn(original, first)
+            self.assertIn('dofile(' + json.dumps(str(rule), ensure_ascii=False) + ')', first)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o640)
+            integration.register_terminal_rule(path, rule, remove=True)
+            removed = path.read_text()
+            self.assertIn(original, removed)
+            self.assertNotIn('UBIQUITTY TERMINAL RULE', removed)
+            integration.register_terminal_rule(path, rule, remove=True)
+            self.assertEqual(path.read_text(), removed)
+
+    def test_terminal_tag_rule_matches_only_ubiquitty_and_refuses_partial_markers(self):
+        rule = (ROOT / 'libexec/ubiquitty-terminal.lua').read_text()
+        self.assertIn('^org\\\\.ubiquitty\\\\.linux$', rule)
+        self.assertIn('tag = "+terminal"', rule)
+        self.assertNotIn('org.omarchy', rule)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'hyprland.lua'
+            original = '-- BEGIN UBIQUITTY TERMINAL RULE\n-- unmanaged remainder\n'
+            path.write_text(original)
+            with self.assertRaises(ValueError):
+                integration.register_terminal_rule(path, Path('/rule.lua'))
+            self.assertEqual(path.read_text(), original)
 
     def test_default_preserves_fallbacks_and_backup(self):
         with tempfile.TemporaryDirectory() as directory:

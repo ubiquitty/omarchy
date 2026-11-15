@@ -48,7 +48,7 @@ If registration or hook installation fails, the installer restores the previous
 executable, integration helper, and desktop entry (or removes newly created
 entry points on a first install). Complete release directories remain available
 because a hook may already refer to them. Omarchy menu entries, copied hooks,
-icons, and a theme initialization completed before the failure are not rolled
+icons, the managed terminal-tag include, and a theme initialization completed before the failure are not rolled
 back; rerun installation after correcting the reported error.
 
 Installation keeps complete versioned applications, fonts, shaders, and license
@@ -57,7 +57,15 @@ processes retain their original resources. Quit all Ubiquitty windows and reopen
 to use an updated executable.
 
 Omarchy integration adds Ubiquitty to **Setup → Default → Terminal** and installs
-separate theme and font hooks. Theme changes update the managed `Omarchy`
+separate theme and font hooks. A managed `dofile` entry in your user
+`hypr/hyprland.lua` loads a versioned terminal-tag rule for `org.ubiquitty.linux`.
+This makes Omarchy's universal Cmd+C/Cmd+V dispatch terminal-safe
+Ctrl+Shift+C/Ctrl+Shift+V; plain Ctrl+C remains interrupt, and copying without a
+selection leaves the clipboard unchanged. Existing and future windows receive
+the tag after the automatic compositor reload. Other application IDs retain
+Omarchy's existing rules. Remove this rule with
+`ubiquitty-omarchy remove-terminal-rule`; unrelated Hyprland configuration is
+preserved. Theme changes update the managed `Omarchy`
 palette. Explicit font changes update the selected family and Foot's primary
 point size while preserving weight, line spacing, fallback ranges, and padding.
 Per-window application IDs let Omarchy float TUI launches such as btop using

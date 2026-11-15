@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import shlex
 import shutil
+import subprocess
 import tempfile
 import time
 
@@ -71,6 +72,32 @@ def register_menu(path, helper, binary, desktop=None):
         atomic_write(path, result)
 
 
+def register_terminal_rule(path, rule, remove=False):
+    if not path.is_file():
+        raise ValueError("Omarchy's hypr/hyprland.lua must exist before installing its terminal rule")
+    original = path.read_text()
+    begin = '-- BEGIN UBIQUITTY TERMINAL RULE\n'
+    end = '-- END UBIQUITTY TERMINAL RULE\n'
+    if (begin in original) != (end in original):
+        raise ValueError('incomplete managed Ubiquitty terminal rule; preserve it manually')
+    text = re.sub(re.escape(begin) + r'[\s\S]*?' + re.escape(end), '', original)
+    if not remove:
+        # The loader path is data, including quotes and backslashes.
+        quoted = json.dumps(str(rule), ensure_ascii=False)
+        text = text.rstrip('\n') + '\n\n' + begin + f'dofile({quoted})\n' + end
+    if text != original:
+        shutil.copy2(path, path.with_name(path.name + '.bak.' + str(time.time_ns())))
+        atomic_write(path, text)
+
+
+def reload_hyprland():
+    if os.environ.get('HYPRLAND_INSTANCE_SIGNATURE') and shutil.which('hyprctl'):
+        subprocess.run(['hyprctl', 'reload'], check=True, stdout=subprocess.DEVNULL)
+        errors = subprocess.check_output(['hyprctl', 'configerrors'], text=True).strip()
+        if errors:
+            raise ValueError(f'Hyprland configuration errors after reload: {errors}')
+
+
 def set_default(config, desktop):
     if not desktop.is_file():
         raise ValueError("install Ubiquitty's desktop entry before selecting it")
@@ -86,13 +113,17 @@ def set_default(config, desktop):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['install', 'set-default'])
+    parser.add_argument('command', choices=['install', 'set-default', 'remove-terminal-rule'])
     parser.add_argument('--binary', type=Path, default=Path(__file__).absolute().parent / 'ubiquitty')
     parser.add_argument('--desktop', type=Path)
     args = parser.parse_args()
     config = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config'))
     data = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share'))
     desktop = args.desktop or data / 'applications' / DESKTOP_ID
+    if args.command == 'remove-terminal-rule':
+        register_terminal_rule(config / 'hypr/hyprland.lua', Path(), remove=True)
+        reload_hyprland()
+        return
     binary = args.binary.absolute()
     if not binary.is_file() or not os.access(binary, os.X_OK):
         parser.error('Ubiquitty binary must be installed and executable')
@@ -100,13 +131,15 @@ def main():
         if args.command == 'install':
             if not desktop.is_file():
                 raise ValueError('desktop entry is missing')
+            register_terminal_rule(config / 'hypr/hyprland.lua', Path(__file__).resolve().parent / 'ubiquitty-terminal.lua')
+            reload_hyprland()
             register_menu(config / 'omarchy/extensions/omarchy-menu.jsonc',
                           Path(__file__).absolute(), binary, desktop)
             print('Ubiquitty added to Omarchy → Setup → Default → Terminal')
         else:
             set_default(config, desktop)
             print('Ubiquitty selected as the default terminal')
-    except (ValueError, OSError) as error:
+    except (ValueError, OSError, subprocess.CalledProcessError) as error:
         parser.exit(1, str(error) + '\n')
 
 
