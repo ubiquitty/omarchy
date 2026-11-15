@@ -39,6 +39,18 @@ Release-build metadata are checked before installation. `--prefix` selects a
 different installation directory. Add `--default-terminal` to select Ubiquitty;
 otherwise the current default is preserved.
 
+For a custom prefix, add its `bin` directory to `PATH` and its `share`
+directory to `XDG_DATA_DIRS` so desktop launchers and `xdg-terminal-exec` can
+find the installation. For example, with `--prefix "$HOME/apps/ubiquitty"`,
+include `$HOME/apps/ubiquitty/bin` and `$HOME/apps/ubiquitty/share` respectively.
+
+If registration or hook installation fails, the installer restores the previous
+executable, integration helper, and desktop entry (or removes newly created
+entry points on a first install). Complete release directories remain available
+because a hook may already refer to them. Omarchy menu entries, copied hooks,
+icons, and a theme initialization completed before the failure are not rolled
+back; rerun installation after correcting the reported error.
+
 Installation keeps complete versioned applications, fonts, shaders, and license
 notices together. The public executable is replaced atomically. Existing
 processes retain their original resources. Quit all Ubiquitty windows and reopen

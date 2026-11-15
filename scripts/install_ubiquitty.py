@@ -13,12 +13,39 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import tomllib
 import uuid
 
 
 def run_optional(command):
     if shutil.which(command[0]):
         subprocess.run(command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def snapshot_file(path):
+    if path.is_symlink():
+        return ('link', os.readlink(path))
+    if path.exists():
+        if not path.is_file():
+            raise ValueError(f'installation destination is not a file: {path}')
+        return ('file', path.read_bytes(), path.stat().st_mode & 0o777)
+    return None
+
+
+def restore_file(path, previous):
+    if previous is None:
+        path.unlink(missing_ok=True)
+        return
+    temporary = path.with_name(f'.{path.name}-rollback-{uuid.uuid4().hex}')
+    try:
+        if previous[0] == 'link':
+            temporary.symlink_to(previous[1])
+        else:
+            temporary.write_bytes(previous[1])
+            temporary.chmod(previous[2])
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def install_bundle(bundle, prefix, with_omarchy=False, set_default=False):
@@ -29,9 +56,14 @@ def install_bundle(bundle, prefix, with_omarchy=False, set_default=False):
         raise ValueError(f'bundle architecture {manifest.get("architecture")} does not match {platform.machine()}')
     if with_omarchy and not shutil.which('omarchy'):
         raise ValueError('--omarchy requires the omarchy command')
+    if with_omarchy:
+        config = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'ubiquitty/config.toml'
+        if config.exists():
+            tomllib.loads(config.read_text())
     releases = prefix / 'lib/ubiquitty/releases'
     releases.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix='.staging-', dir=releases))
+    previous_files = []
     try:
         shutil.copytree(bundle, stage, dirs_exist_ok=True, symlinks=True)
         version = subprocess.check_output([str(stage / 'bin/ubiquitty'), '--version'], text=True).strip()
@@ -45,6 +77,7 @@ def install_bundle(bundle, prefix, with_omarchy=False, set_default=False):
             subprocess.run(['python3', str(release / f'libexec/sync-omarchy-{name}.py'), '--write-hook', str(release / f'libexec/ubiquitty-{name}')], check=True)
         binary = prefix / 'bin/ubiquitty'
         desktop = prefix / 'share/applications/org.ubiquitty.linux.desktop'
+        previous_files = [(path, snapshot_file(path)) for path in [binary, prefix / 'bin/ubiquitty-omarchy', desktop]]
         binary.parent.mkdir(parents=True, exist_ok=True)
         for name, target in [('ubiquitty', release / 'bin/ubiquitty'), ('ubiquitty-omarchy', release / 'libexec/ubiquitty-omarchy.py')]:
             link = prefix / 'bin' / name
@@ -76,6 +109,14 @@ def install_bundle(bundle, prefix, with_omarchy=False, set_default=False):
                 subprocess.run(['python3', str(helper), 'set-default', '--binary', str(binary), '--desktop', str(desktop)], check=True)
         print(f'Installed: {binary}\nDesktop: {desktop}\nResources: {release}')
         return release
+    except BaseException:
+        # Hooks may already reference this release. Restore the public entry
+        # points but retain its complete resources until the user removes it.
+        for path, previous in previous_files:
+            restore_file(path, previous)
+        if previous_files:
+            run_optional(['update-desktop-database', str(prefix / 'share/applications')])
+        raise
     finally:
         if stage:
             shutil.rmtree(stage, ignore_errors=True)

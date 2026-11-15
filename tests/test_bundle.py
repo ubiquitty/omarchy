@@ -74,6 +74,81 @@ class BundleTests(unittest.TestCase):
                 installer.install_bundle(bundle, prefix)
             self.assertEqual((prefix / 'bin/ubiquitty').resolve(), first / 'bin/ubiquitty')
 
+    def test_hook_failure_restores_previous_executable_helper_and_desktop(self):
+        for regular_binary in [False, True]:
+            with self.subTest(regular_binary=regular_binary), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                bundle = self.make_bundle(root)
+                prefix = root / 'prefix'
+                first = installer.install_bundle(bundle, prefix)
+                binary = prefix / 'bin/ubiquitty'
+                helper = prefix / 'bin/ubiquitty-omarchy'
+                desktop = prefix / 'share/applications/org.ubiquitty.linux.desktop'
+                if regular_binary:
+                    binary.unlink()
+                    binary.write_bytes(b'old executable file')
+                    binary.chmod(0o751)
+                binary_before = installer.snapshot_file(binary)
+                helper_before = installer.snapshot_file(helper)
+                desktop_before = installer.snapshot_file(desktop)
+                real_run = subprocess.run
+                def fail_hook(command, **kwargs):
+                    if command[0] == 'omarchy':
+                        raise subprocess.CalledProcessError(1, command)
+                    if len(command) > 2 and command[2] == 'install':
+                        return subprocess.CompletedProcess(command, 0)
+                    return real_run(command, **kwargs)
+                with mock.patch.dict(os.environ, {'XDG_CONFIG_HOME': str(root / 'config'), 'XDG_STATE_HOME': str(root / 'state')}), \
+                        mock.patch.object(installer.shutil, 'which', return_value='/bin/true'), \
+                        mock.patch.object(installer, 'run_optional'), \
+                        mock.patch.object(installer.subprocess, 'run', side_effect=fail_hook):
+                    with self.assertRaises(subprocess.CalledProcessError):
+                        installer.install_bundle(bundle, prefix, with_omarchy=True)
+                self.assertEqual(installer.snapshot_file(binary), binary_before)
+                self.assertEqual(installer.snapshot_file(helper), helper_before)
+                self.assertEqual(installer.snapshot_file(desktop), desktop_before)
+                self.assertTrue(first.exists())
+                self.assertEqual(len(list((prefix / 'lib/ubiquitty/releases').iterdir())), 2)
+
+    def test_first_install_hook_failure_removes_activated_entry_points(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bundle = self.make_bundle(root)
+            prefix = root / 'prefix'
+            real_run = subprocess.run
+            def fail_hook(command, **kwargs):
+                if command[0] == 'omarchy':
+                    raise subprocess.CalledProcessError(1, command)
+                if len(command) > 2 and command[2] == 'install':
+                    return subprocess.CompletedProcess(command, 0)
+                return real_run(command, **kwargs)
+            with mock.patch.dict(os.environ, {'XDG_CONFIG_HOME': str(root / 'config'), 'XDG_STATE_HOME': str(root / 'state')}), \
+                    mock.patch.object(installer.shutil, 'which', return_value='/bin/true'), \
+                    mock.patch.object(installer, 'run_optional'), \
+                    mock.patch.object(installer.subprocess, 'run', side_effect=fail_hook):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    installer.install_bundle(bundle, prefix, with_omarchy=True)
+            for relative in ['bin/ubiquitty', 'bin/ubiquitty-omarchy', 'share/applications/org.ubiquitty.linux.desktop']:
+                path = prefix / relative
+                self.assertFalse(path.exists() or path.is_symlink())
+            releases = list((prefix / 'lib/ubiquitty/releases').iterdir())
+            self.assertEqual(len(releases), 1)
+            self.assertTrue((releases[0] / 'bin/font.ttf').exists())
+
+    def test_invalid_existing_theme_configuration_fails_before_activation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bundle = self.make_bundle(root)
+            target = root / 'config/ubiquitty/config.toml'
+            target.parent.mkdir(parents=True)
+            target.write_text('[appearance\n')
+            prefix = root / 'prefix'
+            with mock.patch.dict(os.environ, {'XDG_CONFIG_HOME': str(root / 'config')}), \
+                    mock.patch.object(installer.shutil, 'which', return_value='/bin/true'):
+                with self.assertRaises(ValueError):
+                    installer.install_bundle(bundle, prefix, with_omarchy=True)
+            self.assertFalse(prefix.exists())
+
     def test_packaging_stages_release_without_a_build_command(self):
         spec = importlib.util.spec_from_file_location('packager', ROOT / 'scripts/package_local_build.py')
         packager = importlib.util.module_from_spec(spec)
