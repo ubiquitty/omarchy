@@ -26,6 +26,8 @@ def main():
     cache = (build / 'CMakeCache.txt').read_text()
     if not re.search(r'^CMAKE_BUILD_TYPE:[^=]+=Release$', cache, re.MULTILINE) and not re.search(r'^CMAKE_CONFIGURATION_TYPES:[^=]+=.+', cache, re.MULTILINE):
         parser.error('a Release build is required')
+    if not re.search(r'^UBIQUITTY_LINUX_CHROMELESS:BOOL=ON$', cache, re.MULTILINE):
+        parser.error('Omarchy requires UBIQUITTY_LINUX_CHROMELESS=ON; use build-local-release.sh')
     options.output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='ubiquitty-package-') as directory:
         stage = Path(directory) / 'ubiquitty'
@@ -50,7 +52,8 @@ def main():
         core = kit / 'Libraries/ubiquitty-core'
         subprocess.run(['python3', str(core / 'Scripts/license_notices.py'), '--source', str(source), '--core', str(core), '--kit', str(kit), '--copy', str(stage / 'share/doc/ubiquitty')], check=True)
         architecture = platform.machine()
-        manifest = {'format': 1, 'version': version, 'architecture': architecture, 'configuration': 'Release'}
+        manifest = {'format': 1, 'version': version, 'architecture': architecture,
+                    'configuration': 'Release', 'chromeless': True}
         (stage / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
         identity = re.sub(r'[^A-Za-z0-9._-]+', '-', version)
         output = options.output_dir / f'{identity}-linux-{architecture}.tar.gz'

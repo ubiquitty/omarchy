@@ -72,9 +72,24 @@ point size while preserving weight, line spacing, fallback ranges, and padding.
 Per-window application IDs let Omarchy float TUI launches such as btop using
 its existing rules.
 
-## Package an existing Release build
+## Build the Omarchy application
 
-Build Ubiquitty from its own repository first, then package the result:
+On a Linux build host with the matching PGO toolchain:
+
+```sh
+./scripts/build-local-release.sh \
+  --source-root /path/to/ubiquitty \
+  --build-root /path/to/ubiquitty-build/omarchy \
+  --output-dir dist
+```
+
+This builds a PGO Release with `UBIQUITTY_LINUX_CHROMELESS=ON`: no GTK
+title bar, tab strip, or window decorations. Omarchy manages the window.
+The application executable remains `ubiquitty`.
+
+## Package an existing chromeless Release build
+
+For a build already configured with `UBIQUITTY_LINUX_CHROMELESS=ON`:
 
 ```sh
 ./scripts/package-local-build.sh \
@@ -83,7 +98,8 @@ Build Ubiquitty from its own repository first, then package the result:
   --output-dir dist
 ```
 
-Packaging does not compile. It stages the application, resources, icons,
+Packaging rejects decorated builds and records the chromeless variant in its
+manifest. It does not compile. It stages the application, resources, icons,
 desktop entry, full license notices, and these integration helpers. It writes
 an architecture/version manifest, a gzip archive, and a SHA256 checksum.
 Compression uses one worker at a low compression level.

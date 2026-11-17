@@ -166,7 +166,7 @@ class BundleTests(unittest.TestCase):
                 (icons / f'Raster/Ubiquitty-{size}.png').write_bytes(b'icon')
             build = root / 'build'
             build.mkdir()
-            (build / 'CMakeCache.txt').write_text('CMAKE_BUILD_TYPE:STRING=Release\n')
+            (build / 'CMakeCache.txt').write_text('CMAKE_BUILD_TYPE:STRING=Release\nUBIQUITTY_LINUX_CHROMELESS:BOOL=ON\n')
             commands = []
             def stage_install(command, **kwargs):
                 commands.append(command)
@@ -196,6 +196,7 @@ class BundleTests(unittest.TestCase):
                 self.assertIn('ubiquitty/libexec/sync-omarchy-font.py', content.getnames())
                 manifest = json.load(content.extractfile('ubiquitty/manifest.json'))
                 self.assertEqual(manifest['configuration'], 'Release')
+                self.assertIs(manifest['chromeless'], True)
             self.assertEqual(archive.with_name(archive.name + '.sha256').read_text().split()[0], hashlib.sha256(archive.read_bytes()).hexdigest())
 
     def test_archive_checksum_is_checked_before_installation(self):
